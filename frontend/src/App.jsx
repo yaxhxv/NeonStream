@@ -21,7 +21,7 @@ function App() {
   );
 
   useEffect(() => {
-    fetch('/api/streams')
+    fetch('https://neonstream-1.onrender.com/api/streams')
       .then(response => response.json())
       .then(data => setStreamUrls(data.map(item => item.url)))
       .catch(error => console.error('Error fetching streams:', error));
@@ -73,7 +73,7 @@ function App() {
         </Box>
         <Grid container spacing={4}>
           {streamUrls.map((url) => (
-            <Grid xs={12} sm={6} md={4} lg={3} key={url}>
+            <Grid item xs={12} sm={6} md={4} lg={3} key={url}>
               <PlayerWrapper
                 ref={addToRefs}
                 url={url}
