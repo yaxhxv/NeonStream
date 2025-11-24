@@ -6,23 +6,8 @@ const app = express();
 // Render provides the PORT environment variable
 const port = process.env.PORT || 3001;
 
-// Whitelist of allowed origins
-const allowedOrigins = [
-  'http://localhost:5173', // Your local frontend
-  'https://neon-stream.web.app' // Your deployed frontend
-];
-
-const corsOptions = {
-  origin: function (origin, callback) {
-    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  }
-};
-
-app.use(cors(corsOptions));
+// Allow all cross-origin requests
+app.use(cors());
 
 // This should be the public URL of your mediamtx service
 const mediamtxUrl = process.env.MEDIAMTX_URL;
