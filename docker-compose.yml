@@ -1,0 +1,13 @@
+version: '3.9'
+services:
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: mediamtx
+    ports:
+      - "8554:8554" # RTSP port
+      - "8888:8888" # HLS port
+      - "1935:1935" # RTMP port
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml
+    environment:
+      - MTX_CONF_PATH=/mediamtx.yml

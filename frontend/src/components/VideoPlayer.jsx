@@ -1,89 +1,87 @@
 import React, { useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import Hls from 'hls.js';
 
-// We need to forward the ref to get access to the component's imperative handles
 const VideoPlayer = forwardRef(({ src, onTimeUpdate, isLeader, syncTime }, ref) => {
   const videoRef = useRef(null);
   const hlsRef = useRef(null);
 
-  // Expose play, pause, and a new seekTo function to the parent component
+  // Expose play and pause methods to the parent component
   useImperativeHandle(ref, () => ({
     play: () => {
-      videoRef.current.play();
+      const promise = videoRef.current.play();
+      // Catch and ignore play interruption errors
+      if (promise !== undefined) {
+        promise.catch(error => {});
+      }
     },
     pause: () => {
       videoRef.current.pause();
     },
-    seekTo: (time) => {
-      if (videoRef.current) {
-        videoRef.current.currentTime = time;
-      }
-    }
   }));
 
+  // Effect 1: Manages the HLS lifecycle.
+  // This effect is responsible for setting up and tearing down the HLS stream.
+  // It only re-runs if the `src` prop changes.
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !src) return;
 
     if (Hls.isSupported()) {
       const hls = new Hls({
-        // Configurations to reduce latency and improve sync
-        maxBufferLength: 30,
-        maxMaxBufferLength: 600,
-        startLevel: 0,
-        startPosition: -1,
+        // Aggressive settings to reduce latency
         liveSyncDurationCount: 3,
         liveMaxLatencyDurationCount: 5,
-        fragLoadingMaxRetry: 6,
-        manifestLoadingMaxRetry: 1,
-        levelLoadingMaxRetry: 4
       });
       hls.loadSource(src);
       hls.attachMedia(video);
       hlsRef.current = hls;
-
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        console.log('Manifest parsed. Ready to play.');
-        // Don't auto-play; wait for parent command
-      });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = src;
     }
 
-    // This function will be called by the leader to report its time
-    const handleTimeUpdate = () => {
-      if (isLeader && onTimeUpdate) {
-        onTimeUpdate(video.currentTime);
-      }
-    };
-
-    // This is the core sync logic for follower videos
-    const syncToLeader = () => {
-      if (!isLeader && syncTime > 0) {
-        // Only seek if the difference is significant to avoid jerky playback
-        const difference = Math.abs(video.currentTime - syncTime);
-        if (difference > 0.5) { // 500ms tolerance
-          console.log(`Syncing video to ${syncTime}. Current: ${video.currentTime}, Diff: ${difference}`);
-          video.currentTime = syncTime;
-        }
-      }
-    };
-
-    video.addEventListener('timeupdate', handleTimeUpdate);
-    // For followers, we check for sync on every 'progress' event
-    if (!isLeader) {
-      video.addEventListener('progress', syncToLeader);
-    }
-
-    // Cleanup
+    // Cleanup: This runs when the component unmounts or `src` changes.
     return () => {
-      video.removeEventListener('timeupdate', handleTimeUpdate);
-      video.removeEventListener('progress', syncToLeader);
       if (hlsRef.current) {
         hlsRef.current.destroy();
       }
     };
-  }, [src, isLeader, onTimeUpdate, syncTime]);
+  }, [src]);
+
+  // Effect 2: Handles time reporting for the leader player.
+  // This effect runs only when `isLeader` or `onTimeUpdate` changes.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !isLeader || !onTimeUpdate) return;
+
+    const handleTimeUpdate = () => {
+      onTimeUpdate(video.currentTime);
+    };
+
+    video.addEventListener('timeupdate', handleTimeUpdate);
+
+    // Cleanup
+    return () => {
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+    };
+  }, [isLeader, onTimeUpdate]);
+
+  // Effect 3: Handles synchronization for follower players.
+  // This effect runs when `syncTime` changes. Crucially, it does NOT
+  // destroy the HLS instance.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || isLeader || syncTime <= 0) return;
+
+    // The tolerance in seconds to prevent constant, jerky seeking.
+    const syncTolerance = 1.5; // 1.5 seconds
+    const difference = Math.abs(video.currentTime - syncTime);
+
+    // We only seek if the video is paused or if the time difference
+    // has exceeded our tolerance.
+    if (video.paused || difference > syncTolerance) {
+      video.currentTime = syncTime;
+    }
+  }, [isLeader, syncTime]);
 
   return <video ref={videoRef} style={{ width: '100%', height: '100%' }} muted controls />;
 });

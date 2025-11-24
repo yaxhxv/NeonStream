@@ -1,0 +1,20 @@
+hlsAlwaysRemux: yes
+paths:
+  stream1:
+    source: https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8
+    sourceOnDemand: yes
+  stream2:
+    source: https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8
+    sourceOnDemand: yes
+  stream3:
+    source: https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8
+    sourceOnDemand: yes
+  stream4:
+    source: https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8
+    sourceOnDemand: yes
+  stream5:
+    source: https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8
+    sourceOnDemand: yes
+  stream6:
+    source: https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8
+    sourceOnDemand: yes

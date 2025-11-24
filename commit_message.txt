@@ -1,0 +1,32 @@
+fix(frontend): Resolve infinite reload loop by using stable component keys
+
+**The Problem:**
+The video player dashboard was stuck in a continuous reload cycle. The streams would load for a moment, then the entire component would unmount and remount, causing the video to restart. This was triggered by time updates from the leader video player, which updated the parent component's state and caused a re-render.
+
+**The Root Cause:**
+The root cause was the use of the array `index` as the `key` prop for the `VideoPlayer` components being rendered in a loop. In React, keys must be stable and unique identifiers. Using the index is an anti-pattern when the list can be re-ordered or re-rendered.
+
+In our case, every time the parent `App` component re-rendered, React's reconciliation algorithm saw the list of players and, relying on the unstable index key, decided it was safer to destroy the old components and create new ones from scratch. This led to the infinite loop.
+
+**The Solution:**
+This commit resolves the issue by replacing the unstable index-based key with the stream's `url`, which is a unique and stable identifier.
+
+```diff
+- {streamUrls.map((url, index) => (
+-   <div key={index} ...>
+-     <VideoPlayer isLeader={index === 0} ... />
+-   </div>
+- ))}
++ {streamUrls.map((url) => (
++   <div key={url} ...>
++     <VideoPlayer isLeader={url === streamUrls[0]} ... />
++   </div>
++ ))}
+```
+
+This change ensures that React can correctly identify each `VideoPlayer` component across re-renders, preserving its state and preventing the unmount/remount cycle.
+
+**Additional Improvements:**
+As part of debugging, this commit also includes several related improvements to React performance and best practices:
+*   The `handleLeaderTimeUpdate` and `addToRefs` functions in `App.jsx` are now wrapped in `useCallback` to ensure they are not re-created on every render.
+*   The monolithic `useEffect` hook in `VideoPlayer.jsx` has been split into multiple, more focused hooks to properly separate concerns (HLS lifecycle, leader time reporting, and follower syncing).
